@@ -5,9 +5,11 @@ import math
 
 
 class Crawler:
-    def __init__(self, grades=["G1"]):
+    def __init__(self, grades=["G1"], msg_flag=True):
         self.__home_url = "http://keirin.jp/pc/search"
         self.__grades = grades
+        self.__msg_flag = msg_flag
+        
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
         options.add_argument('--disable-gpu')
@@ -15,7 +17,7 @@ class Crawler:
         self.__records = []
         self.__record = {}
 
-    def gather(self, interval=2., timeout=math.inf, msg_flag=True):
+    def gather(self, interval=2., timeout=math.inf):
         """
         Parameter
         ---------
@@ -25,66 +27,69 @@ class Crawler:
             単位は秒. 関数実行時からtimeout秒経過すると、
             全てのコンテンツの回収が終わっていなくても終了する.
         """
-        # START: 全グレードのデータ収集
         for grade in self.__grades:
             # 収集
             self.__record["grade"] = grade
 
             # 検索, 資料室へ遷移
             self.__driver.get(self.__home_url)
-            self.__msg(msg_flag)
+            self.__msg(self.__msg_flag)
             time.sleep(interval)
 
             # レース検索結果へ遷移
             self.__go_list_of_races(grade)
-            self.__msg(msg_flag)
+            self.__msg(self.__msg_flag)
             time.sleep(interval)
 
-            # START: 1グレード分のデータを収集
-            page_max = 10
-            for page_idx in range(page_max):
-
-                # START: ページに記載されている全レースのデータ収集
-                tmp_refine = self.__driver.find_element_by_class_name("altertable")
-                elem_trs = tmp_refine.find_elements_by_tag_name("tr")
-                for elem_tr in elem_trs:
-                    # START: 1レース分のデータを収集
-                    # 収集
-                    elem_tds = elem_tr.find_elements_by_tag_name("td")
-                    self.__record["race_name"] = elem_tds[0].text
-                    self.__record["region"] = elem_tds[1].text
-                    self.__record["place"] = elem_tds[2].text
-                    self.__record["start_date"] = elem_tds[3].text
-
-                    # Live & 投票へ遷移
-
-                    # 収集
-
-                    # DONE: 1レース分のデータを収集
-
-                # レース検索結果へ戻る
-                # self.__driver.back()
-                # self.__driver.back()
-
-                # DONE: ページに記載されている全レースのデータ収集
-                # 次ページへ遷移
-
-            # DONE: 1グレード分のデータを収集
-        # DONE: 全グレードのデータ収集
+            self.__gather_one_grade_data(grade, interval, timeout)
 
         self.__driver.quit()
 
-    def __gather_all_grade_data(self):
-        pass
+    # TODO: timeoutの実装
+    def __gather_one_grade_data(self, grade, interval, timeout):
+        """
+        Parameters
+        ----------
+        grade: str
+            収集対象のグレード
+        interval: float
+            urlを遷移する時にsleepする時間
+        timeout: float
+        """
+        # START: 1グレード分のデータを収集
+        page_max = 10  # TODO: page_maxは一時的に使っているだけなので消すこと
+        for page_idx in range(page_max):
+            self.__gather_one_race_data()
+            # 次ページへ遷移
 
-    def __gather_one_grade_data(self):
-        pass
+        # DONE: 1グレード分のデータを収集
 
     def __gather_all_race_data(self):
-        pass
+        # START: ページに記載されている全レースのデータ収集
+        tmp_refine = self.__driver.find_element_by_class_name("altertable")
+        elem_trs = tmp_refine.find_elements_by_tag_name("tr")
+        for elem_tr in elem_trs:
+            self.__gather_one_race_data(elem_tr)
+        # レース検索結果へ戻る
+        # self.__driver.back()
+        # self.__driver.back()
 
-    def __gather_one_race_data(self):
-        pass
+        # DONE: ページに記載されている全レースのデータ収集
+
+    def __gather_one_race_data(self, elem_tr):
+        # START: 1レース分のデータを収集
+        # 収集
+        elem_tds = elem_tr.find_elements_by_tag_name("td")
+        self.__record["race_name"] = elem_tds[0].text
+        self.__record["region"] = elem_tds[1].text
+        self.__record["place"] = elem_tds[2].text
+        self.__record["start_date"] = elem_tds[3].text
+
+        # Live & 投票へ遷移
+
+        # 収集
+
+        # DONE: 1レース分のデータを収集
 
     def __go_list_of_races(self, grade):
         value = self.__grade_key2value(grade)
